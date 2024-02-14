@@ -432,6 +432,7 @@ func (r *RunCommand) Run(args []string) int {
 	topLevelConfig := benchmarktests.TopLevelTargetConfig{
 		Duration:     parsedDuration,
 		RandomMounts: conf.RandomMounts,
+		VaultMount:   conf.VaultMount,
 	}
 
 	tm, err := benchmarktests.BuildTargets(clients[0], conf.Tests, &benchmarkLogger, &topLevelConfig)

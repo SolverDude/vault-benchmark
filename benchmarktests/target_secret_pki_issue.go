@@ -242,7 +242,7 @@ func (p *PKIIssueTest) ParseConfig(body hcl.Body) error {
 				Format: "pem_bundle",
 			},
 			RoleConfig: &PKIIssueRoleConfig{
-				Name:            "benchmark-issue",
+				Name:            "benchmark_issue",
 				AllowSubdomains: true,
 				AllowAnyName:    true,
 				TTL:             "5m",
@@ -296,41 +296,60 @@ func (p *PKIIssueTest) Cleanup(client *api.Client) error {
 
 func (p *PKIIssueTest) Setup(client *api.Client, mountName string, topLevelConfig *TopLevelTargetConfig) (BenchmarkBuilder, error) {
 	var err error
+	var issueDataString []byte
+	var path string
 	secretPath := mountName
 	p.logger = targetLogger.Named(PKIIssueTestType)
-
-	if topLevelConfig.RandomMounts {
-		secretPath, err = uuid.GenerateUUID()
-		if err != nil {
-			log.Fatalf("can't create UUID")
+	// the default path is VaultMount isn't set, and things behave as base benchmark
+	if len(topLevelConfig.VaultMount) == 0 {
+		if topLevelConfig.RandomMounts {
+			secretPath, err = uuid.GenerateUUID()
+			if err != nil {
+				log.Fatalf("can't create UUID")
+			}
 		}
-	}
-	p.logger = p.logger.Named(secretPath)
+		p.logger = p.logger.Named(secretPath)
 
-	// Create Root CA
-	err = p.createRootCA(client, secretPath)
-	if err != nil {
-		return nil, fmt.Errorf("error creating root CA: %v", err)
-	}
+		// Create Root CA
+		err = p.createRootCA(client, secretPath)
+		if err != nil {
+			return nil, fmt.Errorf("error creating root CA: %v", err)
+		}
 
-	// Create and sign Intermediate CA
-	path, err := p.createIntermediateCA(client, secretPath)
-	if err != nil {
-		return nil, fmt.Errorf("error creating intermediate CA: %v", err)
-	}
+		// Create and sign Intermediate CA
+		path, err = p.createIntermediateCA(client, secretPath)
+		if err != nil {
+			return nil, fmt.Errorf("error creating intermediate CA: %v", err)
+		}
 
-	// Decode Issue Config
-	p.logger.Trace(parsingConfigLogMessage("cert issue"))
-	issueData, err := structToMap(p.config.IssueConfig)
-	if err != nil {
-		return nil, fmt.Errorf("error parsing issue config from struct: %v", err)
-	}
+		// Decode Issue Config
+		p.logger.Trace(parsingConfigLogMessage("cert issue"))
+		issueData, err := structToMap(p.config.IssueConfig)
+		if err != nil {
+			return nil, fmt.Errorf("error parsing issue config from struct: %v", err)
+		}
 
-	issueDataString, err := json.Marshal(issueData)
-	if err != nil {
-		return nil, fmt.Errorf("error marshaling issue config data: %v", err)
-	}
+		issueDataString, err = json.Marshal(issueData)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling issue config data: %v", err)
+		}
+	} else {
+		secretPath = topLevelConfig.VaultMount
+		p.logger = p.logger.Named(secretPath)
+		issueData, err := structToMap(p.config.IssueConfig)
+		if err != nil {
+			return nil, fmt.Errorf("error parsing issue config from struct: %v", err)
+		}
 
+		issueDataString, err = json.Marshal(issueData)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling issue config data: %v", err)
+		}
+
+		path = secretPath + "/issue/benchmark_issue"
+		p.rootpath = secretPath + "-root"
+		p.intpath = path
+	}
 	return &PKIIssueTest{
 		pathPrefix: "/v1/" + path,
 		cn:         p.config.IssueConfig.CommonName,

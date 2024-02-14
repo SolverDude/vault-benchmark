@@ -40,6 +40,7 @@ type VaultBenchmarkCoreConfig struct {
 	RPS            int                               `hcl:"rps,optional"`
 	Workers        int                               `hcl:"workers,optional"`
 	RandomMounts   bool                              `hcl:"random_mounts,optional"`
+	VaultMount     string                            `hcl:"vault_mount,optional"`
 	InputResults   bool                              `hcl:"input_results,optional"`
 	Cleanup        bool                              `hcl:"cleanup,optional"`
 	Debug          bool                              `hcl:"debug,optional"`
@@ -54,6 +55,7 @@ func NewVaultBenchmarkCoreConfig() *VaultBenchmarkCoreConfig {
 		Duration:     DefaultDuration,
 		ReportMode:   DefaultReportMode,
 		RandomMounts: DefaultRandomMounts,
+		VaultMount:   "",
 		Cleanup:      DefaultCleanup,
 		LogLevel:     DefaultLogLevel,
 	}
